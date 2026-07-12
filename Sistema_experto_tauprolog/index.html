@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="tau-prolog.js"></script>
+    </head>
+    <body>
+        <textarea class="example-textinput example-program" id="program">
+            le_gusta_a(margara,manzana).
+            le_gusta_a(margara,papaya).
+            le_gusta_a(calderon,ron).
+            le_gusta_a(calderon,brandy).
+            le_gusta_a(calderon,whiskey).
+        </textarea>
+        <br>
+        <!-- Nombre -->
+        <input class="example-textinput example-goal" type="text" id="name" onKeyup="changeName();" value="" placeholder="Introduzca el nombre" />
+        <br>
+        <!-- consulta -->
+        <input class="example-button" type="button" value="Ver todos sus gustos" id="button" onClick="clickButton();" />
+        <!-- respuestas -->
+        <div class="example-result" id="result"></div>
+    </body>
+    
+	<script>
+        function show(name) {
+            // obtener contenedor de salida
+            var result = document.getElementById("result");
+            // devolver función  callback
+            return function(answer) {
+                // si es una pregunta valida
+                if(pl.type.is_substitution(answer)) {
+                    // obtener el valor del gusto
+                    var food = answer.lookup("X");
+                    // obtener el nombre de la persona
+                    var person = name != "Y" ? name : answer.lookup("Y");
+                    // mostrar respuesta
+                    result.innerHTML = result.innerHTML + "<div>" + person + " gusta de " + food + "</div>";
+                }
+            };
+        }
+
+        // Mostrar los gustos de una persona
+        function likes(name) {
+            // Crer session
+            var session = pl.create(1000);
+            // obtener el programa
+            var program = document.getElementById("program").value;
+            // limpiar salida
+            document.getElementById("result").innerHTML = "";
+            // Consultar programa
+            session.consult(program);
+            // Establecer objetivo de la consulta
+            session.query("le_gusta_a(" + name + ", X).");
+            // encontrar respuestas
+            session.answers(show(name), 1000);
+        }
+
+        /** EVENTS */
+
+        // onClick #button
+        function clickButton() {
+            // Obtener persona
+            var name = document.getElementById("name").value;
+            name = name != "" ? name : "Y";
+            // Obtener gustos
+            likes(name);
+        }
+
+        // onChange #name
+        function changeName() {
+            var name = document.getElementById("name").value;
+            document.getElementById("button").value = name != "" ? "Que le gusta a  " + name  + " ?" : "Ver todos los gustos";
+        }
+        changeName();
+	</script>
+</html>
