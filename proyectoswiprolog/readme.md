@@ -42,4 +42,5 @@ alto_rendimientoDescripción: Encuentra y lista a los estudiantes destacados que
 
 7. Aspirantes Potenciales para Apertura de un CursoURL: http://localhost:8080/aspirantes_curso?materia=prog2Descripción: Analiza la plantilla escolar y calcula el total de aspirantes idóneos para abrir un curso específico (alumnos que no lo han aprobado pero que ya cubrieron su seriación previa).
 
-Tecnologías UtilizadasSWI-Prolog (Motor lógico y Servidor HTTP)Markdown (Documentación técnica del proyecto)
+Tecnologías Utilizadas
+SWI-Prolog (Motor lógico y Servidor HTTP)Markdown (Documentación técnica del proyecto)
