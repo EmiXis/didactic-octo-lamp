@@ -1,76 +1,306 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <script src="tau-prolog.js"></script>
-    </head>
-    <body>
-        <textarea class="example-textinput example-program" id="program">
-            le_gusta_a(margara,manzana).
-            le_gusta_a(margara,papaya).
-            le_gusta_a(calderon,ron).
-            le_gusta_a(calderon,brandy).
-            le_gusta_a(calderon,whiskey).
-        </textarea>
-        <br>
-        <!-- Nombre -->
-        <input class="example-textinput example-goal" type="text" id="name" onKeyup="changeName();" value="" placeholder="Introduzca el nombre" />
-        <br>
-        <!-- consulta -->
-        <input class="example-button" type="button" value="Ver todos sus gustos" id="button" onClick="clickButton();" />
-        <!-- respuestas -->
-        <div class="example-result" id="result"></div>
-    </body>
-    
-	<script>
-        function show(name) {
-            // obtener contenedor de salida
-            var result = document.getElementById("result");
-            // devolver función  callback
-            return function(answer) {
-                // si es una pregunta valida
-                if(pl.type.is_substitution(answer)) {
-                    // obtener el valor del gusto
-                    var food = answer.lookup("X");
-                    // obtener el nombre de la persona
-                    var person = name != "Y" ? name : answer.lookup("Y");
-                    // mostrar respuesta
-                    result.innerHTML = result.innerHTML + "<div>" + person + " gusta de " + food + "</div>";
-                }
-            };
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema experto Tau Prolog</title>
+    <script src="tau-prolog.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 24px;
+        line-height: 1.4;
+      }
+
+      input,
+      button {
+        font: inherit;
+      }
+
+      .controls {
+        display: grid;
+        gap: 12px;
+        max-width: 720px;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      input[type="text"] {
+        flex: 1 1 260px;
+        padding: 8px 10px;
+      }
+
+      button {
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <script id="conocimiento" type="text/prolog">
+      desarrollador(alice, junior).
+      desarrollador(bruno, junior).
+      desarrollador(clara, junior).
+      desarrollador(diego, junior).
+      desarrollador(elena, avanzado).
+      desarrollador(fernando, avanzado).
+      desarrollador(gabriela, avanzado).
+      desarrollador(hector, avanzado).
+      desarrollador(isabel, senior).
+      desarrollador(julian, senior).
+
+      proyecto(a, bajo).
+      proyecto(b, bajo).
+      proyecto(c, bajo).
+      proyecto(d, medio).
+      proyecto(e, medio).
+      proyecto(f, medio).
+      proyecto(g, alto).
+      proyecto(h, alto).
+      proyecto(i, muy_alto).
+      proyecto(j, muy_alto).
+
+      requerimiento(bajo, junior, 1).
+      requerimiento(bajo, avanzado, 1).
+
+      requerimiento(medio, junior, 0).
+      requerimiento(medio, avanzado, 1).
+      requerimiento(medio, senior, 1).
+
+      requerimiento(alto, junior, 1).
+      requerimiento(alto, avanzado, 1).
+      requerimiento(alto, senior, 1).
+
+      requerimiento(muy_alto, junior, 2).
+      requerimiento(muy_alto, avanzado, 2).
+      requerimiento(muy_alto, senior, 1).
+
+      disponibles(junior, 4).
+      disponibles(avanzado, 4).
+      disponibles(senior, 2).
+
+      faltante(NivelProyecto, Rol, Faltan) :-
+          requerimiento(NivelProyecto, Rol, Necesarios),
+          disponibles(Rol, Disponibles),
+          Faltan is Necesarios - Disponibles,
+          Faltan > 0.
+
+      personal_suficiente(Proyecto) :-
+          proyecto(Proyecto, Nivel),
+          \+ faltante(Nivel, _, _).
+
+      faltan_por_contratar(Proyecto, junior, F) :-
+          proyecto(Proyecto, Nivel),
+          ( faltante(Nivel, junior, F) -> true ; F = 0 ).
+
+      faltan_por_contratar(Proyecto, avanzado, F) :-
+          proyecto(Proyecto, Nivel),
+          ( faltante(Nivel, avanzado, F) -> true ; F = 0 ).
+
+      faltan_por_contratar(Proyecto, senior, F) :-
+          proyecto(Proyecto, Nivel),
+          ( faltante(Nivel, senior, F) -> true ; F = 0 ).
+
+      estado_personal(Proyecto, suficiente) :-
+          personal_suficiente(Proyecto).
+      estado_personal(Proyecto, insuficiente) :-
+          \+ personal_suficiente(Proyecto).
+
+      a_contratar(Proyecto, Lista) :-
+          proyecto(Proyecto, Nivel),
+          findall(f(Rol, Faltan), faltante(Nivel, Rol, Faltan), Lista).
+    </script>
+
+    <div class="controls">
+      <div class="row">
+        <input
+          type="text"
+          id="project"
+          placeholder="proyecto en minusculas, por ejemplo d"
+          autocomplete="off"
+        />
+      </div>
+      <div class="row">
+        <button id="btnDevelopers" type="button">Listar desarrolladores</button>
+        <button id="btnProjects" type="button">Listar proyectos</button>
+        <button id="btnStaff" type="button">Verificar personal</button>
+        <button id="btnHire" type="button">Contratar personal</button>
+      </div>
+    </div>
+
+    <script>
+      function getProgram() {
+        return document.getElementById("conocimiento").textContent;
+      }
+
+      function normalizeProjectAtom(value) {
+        return value
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "_")
+          .replace(/[^a-z0-9_]/g, "");
+      }
+
+      function logError(message, error) {
+        if (error !== undefined) {
+          console.error(message, error);
+        } else {
+          console.error(message);
+        }
+      }
+
+      function runGoal(goal, onAnswer, onFail) {
+        var session = pl.create(1000);
+        var program = getProgram();
+
+        session.consult(program, {
+          success: function () {
+            session.query(goal, {
+              success: function () {
+                readAnswers(session, onAnswer, onFail);
+              },
+              error: function (error) {
+                logError("Error en la consulta:", error);
+              },
+            });
+          },
+          error: function (error) {
+            logError("Error al consultar la base de conocimiento:", error);
+          },
+        });
+      }
+
+      function readAnswers(session, onAnswer, onFail) {
+        session.answer({
+          success: function (answer) {
+            onAnswer(answer, session);
+            readAnswers(session, onAnswer, onFail);
+          },
+          fail: function () {
+            if (typeof onFail === "function") {
+              onFail();
+            }
+          },
+          error: function (error) {
+            logError("Error al ejecutar la consulta:", error);
+          },
+          limit: function () {
+            console.error("Se alcanzo el limite de respuestas.");
+          },
+        });
+      }
+
+      function formatAtom(value) {
+        return value.toString().replace(/_/g, " ");
+      }
+
+      function listDevelopers() {
+        console.clear();
+        runGoal(
+          "desarrollador(Dev, Nivel).",
+          function (answer, session) {
+            var dev = formatAtom(answer.lookup("Dev"));
+            var nivel = formatAtom(answer.lookup("Nivel"));
+            console.log(dev + " — " + nivel);
+          },
+          function () {
+            console.error("No se encontraron desarrolladores.");
+          },
+        );
+      }
+
+      function listProjects() {
+        console.clear();
+        runGoal(
+          "proyecto(Proyecto, Nivel).",
+          function (answer, session) {
+            var proj = formatAtom(answer.lookup("Proyecto"));
+            var nivel = formatAtom(answer.lookup("Nivel"));
+            console.log("Proyecto " + proj + " — complejidad " + nivel);
+          },
+          function () {
+            console.error("No se encontraron proyectos.");
+          },
+        );
+      }
+
+      function checkStaffing() {
+        console.clear();
+
+        var project = normalizeProjectAtom(
+          document.getElementById("project").value,
+        );
+
+        if (!project) {
+          console.error("Introduce un nombre de proyecto.");
+          return;
         }
 
-        // Mostrar los gustos de una persona
-        function likes(name) {
-            // Crer session
-            var session = pl.create(1000);
-            // obtener el programa
-            var program = document.getElementById("program").value;
-            // limpiar salida
-            document.getElementById("result").innerHTML = "";
-            // Consultar programa
-            session.consult(program);
-            // Establecer objetivo de la consulta
-            session.query("le_gusta_a(" + name + ", X).");
-            // encontrar respuestas
-            session.answers(show(name), 1000);
+        runGoal(
+          "estado_personal(" + project + ", Estado).",
+          function (answer) {
+            var status = answer.lookup("Estado").toString();
+
+            if (status === "suficiente") {
+              console.log("Proyecto " + project + ": personal suficiente.");
+            } else {
+              console.log("Proyecto " + project + ": personal insuficiente.");
+            }
+          },
+          function () {
+            console.error("No se encontro el proyecto: " + project);
+          },
+        );
+      }
+
+      function hireStaff() {
+        console.clear();
+
+        var project = normalizeProjectAtom(
+          document.getElementById("project").value,
+        );
+
+        if (!project) {
+          console.error("Introduce un nombre de proyecto.");
+          return;
         }
 
-        /** EVENTS */
+        runGoal(
+          "a_contratar(" + project + ", Lista).",
+          function (answer) {
+            var list = answer.lookup("Lista").toString();
 
-        // onClick #button
-        function clickButton() {
-            // Obtener persona
-            var name = document.getElementById("name").value;
-            name = name != "" ? name : "Y";
-            // Obtener gustos
-            likes(name);
-        }
+            if (list === "[]") {
+              console.log(
+                "Proyecto " +
+                  project +
+                  ": no se necesita contratar personal adicional.",
+              );
+            } else {
+              console.log("Proyecto " + project + ": contratar " + list);
+            }
+          },
+          function () {
+            console.error("No se encontro el proyecto: " + project);
+          },
+        );
+      }
 
-        // onChange #name
-        function changeName() {
-            var name = document.getElementById("name").value;
-            document.getElementById("button").value = name != "" ? "Que le gusta a  " + name  + " ?" : "Ver todos los gustos";
-        }
-        changeName();
-	</script>
+      document
+        .getElementById("btnDevelopers")
+        .addEventListener("click", listDevelopers);
+      document
+        .getElementById("btnProjects")
+        .addEventListener("click", listProjects);
+      document
+        .getElementById("btnStaff")
+        .addEventListener("click", checkStaffing);
+      document.getElementById("btnHire").addEventListener("click", hireStaff);
+    </script>
+  </body>
 </html>
